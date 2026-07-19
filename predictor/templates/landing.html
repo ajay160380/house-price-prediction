@@ -1,324 +1,493 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EstateAI — Predict Property Prices with AI-Powered Precision</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #050505;
-  --bg-glass: rgba(10, 10, 10, 0.6);
-  --border: rgba(255, 255, 255, 0.1);
-  --text-primary: #FFFFFF;
-  --text-secondary: #888888;
-  --accent: #3b82f6;
-  --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EstateAI | Property Analytics</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0c0c0f',
+            fg: '#e8e8f0',
+            primary: '#c9a96e',
+            bordercol: 'rgba(255, 255, 255, 0.05)',
+            secondary: '#999aaf',
+            scanline: '#c9a96e'
+          },
+          fontFamily: {
+            serif: ['"Playfair Display"', 'serif'],
+            sans: ['"Space Grotesk"', 'sans-serif'],
+            mono: ['"Space Mono"', 'monospace'],
+          },
+          transitionTimingFunction: {
+            'editorial': 'cubic-bezier(0.16, 1, 0.3, 1)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0c0c0f;
+      color: #e8e8f0;
+      overflow-x: hidden;
+    }
+    
+    /* Fixed background grid */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+      mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%);
+      -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%);
+    }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-primary); overflow-x: hidden; }
+    /* Vertical structural lines */
+    .structural-lines {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      display: flex; justify-content: space-between;
+      max-width: 80rem; margin: 0 auto;
+      border-left: 1px solid rgba(255,255,255,0.05);
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    .structural-lines::before, .structural-lines::after {
+      content: '';
+      position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.05);
+    }
+    .structural-lines::before { left: 33.33%; }
+    .structural-lines::after { left: 66.66%; }
 
-/* Background mesh */
-.bg-mesh {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
-  background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15), transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15), transparent 50%);
-  filter: blur(60px);
-}
+    /* Transitions */
+    .trans-editorial {
+      transition: all 800ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .btn-editorial {
+      background: rgba(201, 169, 110, 0.1); color: #c9a96e; border: 1px solid #c9a96e; font-family: 'Space Mono', monospace;
+      font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase;
+      padding: 16px 32px; border: none; cursor: pointer; position: relative;
+      overflow: hidden; display: inline-flex; justify-content: center; align-items: center;
+    }
+    .btn-editorial::before {
+      content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(201,169,110,0.2); transform: translateY(100%); transition: transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-editorial:hover {
+      letter-spacing: 0.4em;
+    }
+    .btn-editorial:hover::before {
+      transform: translateY(0);
+    }
 
-/* Navbar */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; height: 72px; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
-  background: var(--bg-glass); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
-}
-.logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.nav-links { display: flex; gap: 32px; }
-.nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-.nav-links a:hover { color: var(--text-primary); }
-.nav-actions { display: flex; align-items: center; gap: 16px; }
-.btn-ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.2s; }
-.btn-ghost:hover { background: rgba(255,255,255,0.05); }
-.btn-primary { background: var(--text-primary); color: var(--bg); border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-.btn-primary:hover { background: #e0e0e0; }
-.btn-gradient { background: var(--accent-gradient); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-.btn-gradient:hover { opacity: 0.9; transform: translateY(-1px); }
+    /* Scan line */
+    .scan-line-container {
+      height: 2px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; width: 100%;
+    }
+    .scan-line {
+      position: absolute; top: 0; left: 0; height: 100%; width: 30%; background: #c9a96e; box-shadow: 0 0 10px #c9a96e, 0 0 20px #c9a96e;
+      animation: scan 2s cubic-bezier(0.8, 0, 0.2, 1) infinite;
+    }
+    @keyframes scan {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
 
-/* Hero */
-.hero { padding: 160px 24px 80px; text-align: center; max-width: 900px; margin: 0 auto; }
-.hero h1 { font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: 1.1; margin-bottom: 24px; background: linear-gradient(180deg, #FFFFFF 0%, #AAAAAA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.hero p { font-size: 20px; color: var(--text-secondary); margin-bottom: 40px; font-weight: 400; max-width: 600px; margin-inline: auto; line-height: 1.5; }
-.hero-btns { display: flex; justify-content: center; gap: 16px; }
-.trust-bar { margin-top: 32px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    /* Form inputs */
+    .form-input {
+      background: transparent; border: none; border-bottom: 1px solid #e5e4de;
+      padding: 12px 0; width: 100%; font-family: 'Space Grotesk', sans-serif;
+      outline: none; transition: border-color 0.3s ease;
+    }
+    .form-input:focus { border-color: #e8e8f0; }
+    .form-input::placeholder { font-family: 'Space Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #B4B4B4; }
 
-/* Dashboard Mockup */
-.mockup-container { max-width: 1100px; margin: 40px auto; padding: 0 24px; perspective: 1000px; }
-.mockup { background: #111; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.5); transform: rotateX(5deg); transition: transform 0.5s ease-out; }
-.mockup:hover { transform: rotateX(0deg); }
-.mockup-header { height: 40px; background: #1a1a1a; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
-.mockup-header .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; }
-.mockup-body { height: 500px; background: url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop') center/cover; filter: grayscale(1) brightness(0.3); position: relative; }
-.mockup-body::after { content: 'Live Dashboard Preview'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: 600; color: rgba(255,255,255,0.3); }
-
-/* Features */
-.features { padding: 120px 24px; max-width: 1200px; margin: 0 auto; }
-.section-title { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 64px; letter-spacing: -1px; }
-.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-.feature-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 16px; padding: 32px; transition: all 0.3s; position: relative; overflow: hidden; }
-.feature-card:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-4px); background: rgba(255,255,255,0.04); }
-.feature-icon { font-size: 32px; margin-bottom: 24px; }
-.feature-card h3 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
-.feature-card p { font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
-
-/* Stats */
-.stats { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 24px; background: rgba(255,255,255,0.01); display: flex; justify-content: center; gap: 80px; text-align: center; }
-.stat-num { font-size: 48px; font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.stat-label { font-size: 14px; color: var(--text-secondary); margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }
-
-/* Footer */
-.cta-section { padding: 120px 24px; text-align: center; }
-footer { border-top: 1px solid var(--border); padding: 48px 48px; display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 14px; }
-
-/* Auth Modal */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
-.modal-overlay.show { display: flex; opacity: 1; }
-.auth-modal { background: #111; border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 400px; padding: 32px; transform: scale(0.95); transition: transform 0.3s; }
-.modal-overlay.show .auth-modal { transform: scale(1); }
-.auth-tabs { display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
-.auth-tab { cursor: pointer; color: var(--text-secondary); font-weight: 600; font-size: 15px; transition: 0.2s; }
-.auth-tab.active { color: var(--text-primary); }
-.form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
-.form-group input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; outline: none; font-family: inherit; }
-.form-group input:focus { border-color: var(--text-primary); }
-.auth-btn { width: 100%; margin-top: 16px; }
-.social-btn { width: 100%; background: transparent; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 8px; font-weight: 500; cursor: pointer; margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.social-btn:hover { background: rgba(255,255,255,0.05); }
-.close-modal { position: absolute; top: 16px; right: 16px; cursor: pointer; color: var(--text-secondary); font-size: 20px; }
-.close-modal:hover { color: white; }
-
-@media (max-width: 768px) {
-  .hero h1 { font-size: 42px; }
-  .stats { flex-direction: column; gap: 40px; }
-  .navbar { padding: 0 24px; }
-  .nav-links { display: none; }
-}
-</style>
+    /* Word reveal */
+    .reveal-word { opacity: 0.15; transition: opacity 0.4s ease; }
+  
+    /* Reveal Animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .delay-100 { transition-delay: 100ms; }
+    .delay-200 { transition-delay: 200ms; }
+    .delay-300 { transition-delay: 300ms; }
+    .delay-400 { transition-delay: 400ms; }
+\n  
+    /* Marquee Animations */
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+      display: flex;
+      width: 200%;
+      animation: marquee 20s linear infinite;
+    }
+    .animate-marquee:hover {
+      animation-play-state: paused;
+    }
+\n  </style>
 </head>
-<body>
+<body class="font-sans antialiased text-fg">
 
-<div class="bg-mesh"></div>
+  <div class="bg-grid"></div>
+  <div class="structural-lines"></div>
 
-<!-- NAVBAR -->
-<nav class="navbar">
-  <div class="logo">🏡 EstateAI</div>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#how-it-works">How it Works</a>
-    <a href="#pricing">Pricing</a>
+  <!-- Announcement Bar -->
+  <div class="fixed top-0 left-0 w-full z-[60] bg-primary/10 border-b border-primary/20 text-center py-2 text-[10px] uppercase tracking-[0.2em] font-mono text-primary animate-pulse backdrop-blur-md">
+    ✨ EstateAI 2.0 Enterprise is now available
   </div>
-  <div class="nav-actions">
-    <button class="btn-ghost" onclick="openAuth('login')">Login</button>
-    <button class="btn-primary" onclick="startTrial()">Start Free Trial</button>
-  </div>
-</nav>
 
-<!-- HERO -->
-<section class="hero">
-  <h1>Predict Property Prices with AI-Powered Precision</h1>
-  <p>Make smarter real estate decisions in Bengaluru. Instant ML valuations, real-time nearby amenities, and Llama-3 powered market insights—all in one beautiful dashboard.</p>
-  <div class="hero-btns">
-    <button class="btn-gradient" onclick="startTrial()">Start Free Trial</button>
-    <button class="btn-ghost" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">See How It Works</button>
-  </div>
-  <div class="trust-bar">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> No credit card required
-    <span style="margin: 0 8px;">·</span>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Setup in 2 minutes
-  </div>
-</section>
-
-<!-- MOCKUP -->
-<div class="mockup-container">
-  <div class="mockup">
-    <div class="mockup-header">
-      <div class="dot" style="background:#ff5f56"></div>
-      <div class="dot" style="background:#ffbd2e"></div>
-      <div class="dot" style="background:#27c93f"></div>
+  <!-- Header Navigation -->
+  <header class="fixed top-10 left-0 w-full z-50 pt-8 trans-editorial" id="headerNav">
+    <div class="max-w-7xl mx-auto border-b border-bordercol px-6 py-4 flex items-center justify-between" id="headerInner">
+      <div class="flex items-center gap-4">
+        <div class="h-[1px] bg-fg w-6"></div>
+        <div class="hero-element font-serif text-xl tracking-tight">EstateAI</div>
+        <div class="h-[1px] bg-fg w-8"></div>
+      </div>
+      <nav class="flex gap-8">
+        <a href="/dashboard" class="hero-element btn-editorial font-mono text-[10px] uppercase tracking-[0.3em] hover:text-primary trans-editorial font-bold">Predictor</a>
+      </nav>
     </div>
-    <div class="mockup-body"></div>
-  </div>
-</div>
+  </header>
 
-<!-- STATS -->
-<section class="stats">
-  <div>
-    <div class="stat-num">240+</div>
-    <div class="stat-label">Locations Covered</div>
-  </div>
-  <div>
-    <div class="stat-num">95%</div>
-    <div class="stat-label">Prediction Accuracy</div>
-  </div>
-  <div>
-    <div class="stat-num">10k+</div>
-    <div class="stat-label">Properties Analyzed</div>
-  </div>
-</section>
-
-<!-- FEATURES -->
-<section class="features" id="features">
-  <h2 class="section-title">Built for Modern Real Estate</h2>
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="feature-icon">🧠</div>
-      <h3>ML Price Predictor</h3>
-      <p>Advanced regression models provide an accurate Min-Max price range based on real market data.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🌍</div>
-      <h3>Live Location & Amenities</h3>
-      <p>Integrated Geoapify maps automatically scan a 3km radius for schools, hospitals, and transit.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🏷️</div>
-      <h3>AI Lifestyle Badges</h3>
-      <p>Instantly know if a property is "Family Friendly" or a "Shopper's Paradise" with AI tagging.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🤖</div>
-      <h3>Groq Llama-3 Analysis</h3>
-      <p>Get dynamic Investment and Safety scores powered by the fastest LLM inference on the market.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">💰</div>
-      <h3>Financial Hub</h3>
-      <p>Built-in EMI calculator and Rental Yield estimators to analyze your ROI instantly.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📄</div>
-      <h3>One-Click PDF Reports</h3>
-      <p>Generate professional client-ready reports featuring all data, maps, and insights instantly.</p>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta-section">
-  <h2 style="font-size: 48px; font-weight: 800; margin-bottom: 24px;">Ready to make smarter decisions?</h2>
-  <button class="btn-gradient" onclick="startTrial()">Start Free Trial Now</button>
-</section>
-
-<!-- FOOTER -->
-<footer>
-  <div>© 2026 EstateAI. All rights reserved.</div>
-  <div style="display: flex; gap: 24px;">
-    <a href="#" style="color: inherit; text-decoration: none;">Privacy</a>
-    <a href="#" style="color: inherit; text-decoration: none;">Terms</a>
-    <a href="#" style="color: inherit; text-decoration: none;">Contact</a>
-  </div>
-</footer>
-
-<!-- AUTH MODAL -->
-<div class="modal-overlay" id="authModal">
-  <div class="auth-modal">
-    <div class="close-modal" onclick="closeAuth()">×</div>
-    <div class="auth-tabs">
-      <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log In</div>
-      <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
-    </div>
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto border-l border-r border-bordercol min-h-screen pt-40">
     
-    <div id="form-login">
-      <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" placeholder="you@example.com">
+    <!-- Hero Section -->
+    <section class="px-6 py-24 text-center border-b border-bordercol relative overflow-hidden">
+      <!-- Glowing Radial Background -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] max-w-[800px] max-h-[800px] bg-primary/20 rounded-full blur-[120px] pointer-events-none opacity-50 mix-blend-screen"></div>
+      
+      <div class="relative z-10 inline-flex items-center gap-2 border border-bordercol px-4 py-2 rounded-full mb-12 bg-bg/50 backdrop-blur-sm">
+        <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+        <span class="font-mono text-[10px] uppercase tracking-widest">Predictive Intelligence Active</span>
       </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" placeholder="••••••••">
-      </div>
-      <button class="btn-primary auth-btn" onclick="doAuth()">Log In</button>
-    </div>
+      
+      <h1 class="hero-element font-serif text-[9vw] leading-[0.9] font-light uppercase tracking-tighter mb-8">
+        Analyze The <br> <span class="italic text-secondary">Future</span> Of Real Estate
+      </h1>
+      
+      <p class="hero-element max-w-2xl mx-auto font-sans text-lg text-secondary mb-12 leading-relaxed relative z-10">
+        Leverage machine learning and geospatial topography to unearth accurate valuations in milliseconds.
+      </p>
 
-    <div id="form-signup" style="display:none;">
-      <div class="form-group">
-        <label>Full Name</label>
-        <input type="text" placeholder="John Doe">
+      <a href="/dashboard" class="hero-element btn-editorial trans-editorial relative z-10">Initialize Dashboard</a>
+    </section>
+
+    <!-- Statistics Grid -->
+    <section class="grid grid-cols-1 md:grid-cols-3 border-b border-bordercol relative z-10">
+      <div class="p-10 border-r border-bordercol hover:bg-white/5 trans-editorial group cursor-default">
+        <div class="w-12 h-12 border border-bordercol flex items-center justify-center mb-8">
+          <svg class="w-5 h-5 text-fg group-hover:text-primary trans-editorial" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        </div>
+        <div class="font-serif text-4xl mb-2">3.2M</div>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-secondary">Data Points Analyzed</div>
       </div>
-      <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" placeholder="you@example.com">
+      <div class="p-10 border-r border-bordercol hover:bg-white/5 trans-editorial group cursor-default">
+        <div class="w-12 h-12 border border-bordercol flex items-center justify-center mb-8">
+          <svg class="w-5 h-5 text-fg group-hover:text-primary trans-editorial" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="font-serif text-4xl mb-2">94.8%</div>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-secondary">Prediction Accuracy</div>
       </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" placeholder="Create a strong password">
+      <div class="p-10 hover:bg-white/5 trans-editorial group cursor-default">
+        <div class="w-12 h-12 border border-bordercol flex items-center justify-center mb-8">
+          <svg class="w-5 h-5 text-fg group-hover:text-primary trans-editorial" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="font-serif text-4xl mb-2">< 200ms</div>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-secondary">Inference Latency</div>
       </div>
-      <button class="btn-primary auth-btn" onclick="doAuth()">Create Account</button>
-    </div>
+    </section>
+
+    <!-- Text Reveal Section -->
+    <section class="py-40 px-12 border-b border-bordercol min-h-screen flex items-center" id="revealSection">
+      <p class="font-serif text-3xl md:text-5xl leading-tight max-w-4xl" id="revealText">
+        We believe that understanding property value requires more than just historical data. It requires an editorial curation of geographic truth, structural integrity, and neighborhood evolution.
+      </p>
+    </section>
+
+    <!-- Interactive Workflow -->
+    <section class="grid grid-cols-1 md:grid-cols-2 border-b border-bordercol h-screen">
+      <div class="border-r border-bordercol p-12 flex flex-col justify-center gap-12">
+        <div class="font-mono text-[10px] uppercase tracking-[0.2em] mb-4 text-primary">Process</div>
+        
+        <div class="workflow-step cursor-pointer group" onclick="setStep(1)">
+          <div class="flex items-start gap-4">
+            <div class="font-mono text-xl opacity-40 group-hover:opacity-100 trans-editorial" id="step-num-1">01</div>
+            <div>
+              <div class="font-serif text-2xl mb-2">Ingest Geospatial Data</div>
+              <div class="font-sans text-sm text-gray-500 max-h-0 overflow-hidden trans-editorial" id="step-desc-1">Our system aggregates open street maps, amenities proximity, and exact coordinate elevations.</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="workflow-step cursor-pointer group" onclick="setStep(2)">
+          <div class="flex items-start gap-4">
+            <div class="font-mono text-xl opacity-40 group-hover:opacity-100 trans-editorial" id="step-num-2">02</div>
+            <div>
+              <div class="font-serif text-2xl mb-2">Algorithmic Inference</div>
+              <div class="font-sans text-sm text-gray-500 max-h-0 overflow-hidden trans-editorial" id="step-desc-2">The AI model cross-references historical sales with current neighborhood momentum indices.</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="workflow-step cursor-pointer group" onclick="setStep(3)">
+          <div class="flex items-start gap-4">
+            <div class="font-mono text-xl opacity-40 group-hover:opacity-100 trans-editorial" id="step-num-3">03</div>
+            <div>
+              <div class="font-serif text-2xl mb-2">Generate Insights</div>
+              <div class="font-sans text-sm text-gray-500 max-h-0 overflow-hidden trans-editorial" id="step-desc-3">You receive a highly curated editorial report with exact valuation bounds and market confidence.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-12 relative flex items-center justify-center bg-[#eae9e4]">
+        <div class="absolute inset-0 opacity-60 mix-blend-multiply bg-[url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center grayscale"></div>
+        <div class="relative z-10 w-full max-w-sm bg-bg border border-bordercol p-6 shadow-2xl">
+          <div class="font-mono text-[10px] uppercase tracking-widest text-secondary mb-8">Processing Matrix</div>
+          <div class="space-y-4">
+            <div class="flex justify-between font-mono text-[10px]"><span class="text-secondary">SYS_STATE</span> <span>Active</span></div>
+            <div class="flex justify-between font-mono text-[10px]"><span class="text-secondary">MEM_ALLOC</span> <span>1024.5TB</span></div>
+            <div class="mt-8">
+              <div class="font-mono text-[10px] mb-2 text-secondary">Neural Analysis</div>
+              <div class="scan-line-container"><div class="scan-line"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Use Case Tabs -->
+    <section class="py-24 border-b border-bordercol px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-4xl mb-8">Built For Precision</h2>
+        <div class="inline-flex border border-bordercol rounded-full p-1 bg-white">
+          <button class="px-6 py-2 rounded-full font-mono text-[10px] uppercase tracking-widest bg-primary text-white trans-editorial">Investors</button>
+          <button class="px-6 py-2 rounded-full font-mono text-[10px] uppercase tracking-widest text-fg hover:bg-gray-100 trans-editorial">Brokers</button>
+          <button class="px-6 py-2 rounded-full font-mono text-[10px] uppercase tracking-widest text-fg hover:bg-gray-100 trans-editorial">Analysts</button>
+        </div>
+      </div>
+
+      <div class="border border-bordercol bg-bg p-12 relative overflow-hidden">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-serif text-[240px] opacity-5 pointer-events-none italic">
+          I
+        </div>
+        <div class="relative z-10 max-w-3xl mx-auto text-center mb-20">
+          <h3 class="font-serif text-3xl mb-4">Capital Deployment</h3>
+          <p class="hero-element font-sans text-gray-500">Quickly validate potential acquisitions using our high-confidence property valuations, reducing due diligence time by 80%.</p>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-8 relative z-10 border-t border-bordercol pt-12">
+          <div>
+            <div class="font-mono text-[10px] uppercase text-secondary mb-2">Metric 01</div>
+            <div class="font-serif text-xl">ROI Forecasting</div>
+          </div>
+          <div>
+            <div class="font-mono text-[10px] uppercase text-secondary mb-2">Metric 02</div>
+            <div class="font-serif text-xl">Risk Mitigation</div>
+          </div>
+          <div>
+            <div class="font-mono text-[10px] uppercase text-secondary mb-2">Metric 03</div>
+            <div class="font-serif text-xl">Market Scanning</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     
-    <button class="social-btn">
-      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      Continue with Google
-    </button>
-  </div>
-</div>
+    <!-- 1. Trusted By Marquee -->
+    <section class="py-12 border-b border-bordercol overflow-hidden relative bg-bg/50">
+      <div class="absolute left-0 top-0 w-32 h-full bg-gradient-to-r from-bg to-transparent z-10 pointer-events-none"></div>
+      <div class="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-bg to-transparent z-10 pointer-events-none"></div>
+      
+      <div class="font-mono text-[10px] uppercase tracking-widest text-secondary text-center mb-6">Integrating Data From Top Nodes</div>
+      <div class="flex overflow-hidden">
+        <div class="animate-marquee flex items-center justify-around w-[200%] gap-8">
+          <div class="font-serif text-2xl text-secondary">Quantum Capital</div>
+          <div class="font-serif text-2xl text-secondary">Aura Equities</div>
+          <div class="font-serif text-2xl text-secondary">GeoSpatial Hub</div>
+          <div class="font-serif text-2xl text-secondary">Nexus Holdings</div>
+          <div class="font-serif text-2xl text-secondary">Apex Metrics</div>
+          <!-- Repeat for smooth scroll -->
+          <div class="font-serif text-2xl text-secondary">Quantum Capital</div>
+          <div class="font-serif text-2xl text-secondary">Aura Equities</div>
+          <div class="font-serif text-2xl text-secondary">GeoSpatial Hub</div>
+          <div class="font-serif text-2xl text-secondary">Nexus Holdings</div>
+          <div class="font-serif text-2xl text-secondary">Apex Metrics</div>
+        </div>
+      </div>
+    </section>
 
-<script>
-  // Simple animations for feature cards
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.style.opacity = 1;
-        entry.target.style.transform = 'translateY(0)';
+    <!-- 2. Feature Bento Box -->
+    <section class="px-6 py-24 border-b border-bordercol relative z-10">
+      <h2 class="reveal font-serif text-4xl md:text-5xl leading-none mb-16 text-center">Core <span class="italic text-primary">Capabilities.</span></h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div class="reveal delay-100 col-span-1 md:col-span-2 lg:col-span-2 bg-white/5 border border-bordercol p-10 hover:bg-white/10 trans-editorial group rounded-sm">
+          <div class="font-mono text-[10px] uppercase tracking-widest text-primary mb-4">Hyper-Local Forecasting</div>
+          <h3 class="font-serif text-3xl mb-4 text-fg">Neighborhood-level neural networks.</h3>
+          <p class="font-sans text-secondary text-lg">Our models analyze over 120 unique parameters per square kilometer, delivering pinpoint accuracy for property valuations across changing market dynamics.</p>
+        </div>
+        <div class="reveal delay-200 col-span-1 bg-white/5 border border-bordercol p-10 hover:bg-white/10 trans-editorial group rounded-sm">
+          <div class="font-mono text-[10px] uppercase tracking-widest text-primary mb-4">Risk Assessment</div>
+          <h3 class="font-serif text-3xl mb-4 text-fg">Automated safety scoring.</h3>
+          <p class="font-sans text-secondary mt-auto pt-4 border-t border-bordercol">Instant crime, infrastructure, and livability grades.</p>
+        </div>
+        <div class="reveal delay-300 col-span-1 bg-white/5 border border-bordercol p-10 hover:bg-white/10 trans-editorial group rounded-sm">
+          <div class="font-mono text-[10px] uppercase tracking-widest text-primary mb-4">Yield Optimization</div>
+          <h3 class="font-serif text-3xl mb-4 text-fg">Predictive rent estimates.</h3>
+          <p class="font-sans text-secondary mt-auto pt-4 border-t border-bordercol">Forecast monthly cash flow before you buy.</p>
+        </div>
+        <div class="reveal delay-400 col-span-1 md:col-span-2 bg-white/5 border border-bordercol p-10 hover:bg-white/10 trans-editorial group rounded-sm">
+          <div class="font-mono text-[10px] uppercase tracking-widest text-primary mb-4">White-Label Reports</div>
+          <h3 class="font-serif text-3xl mb-4 text-fg">Client-ready PDFs in seconds.</h3>
+          <p class="font-sans text-secondary text-lg">Generate stunning, branded investment pitches with one click. Impress stakeholders with data-backed beautiful reports.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. How it Works -->
+    <section class="px-6 py-24 border-b border-bordercol">
+      <h2 class="reveal font-serif text-4xl md:text-5xl leading-none mb-20 text-center">The <span class="italic text-primary">Process.</span></h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl mx-auto relative">
+        <div class="hidden md:block absolute top-6 left-0 w-full h-[1px] bg-bordercol"></div>
+        
+        <div class="reveal delay-100 relative z-10 text-center">
+          <div class="w-12 h-12 bg-bg border border-primary text-primary font-mono flex items-center justify-center mx-auto mb-6 rounded-full shadow-[0_0_15px_rgba(201,169,110,0.3)]">01</div>
+          <h3 class="font-serif text-2xl mb-4">Data Aggregation</h3>
+          <p class="font-sans text-secondary">Ingesting massive datasets from geospatial mapping, market trends, and urban development plans.</p>
+        </div>
+        <div class="reveal delay-200 relative z-10 text-center">
+          <div class="w-12 h-12 bg-bg border border-primary text-primary font-mono flex items-center justify-center mx-auto mb-6 rounded-full shadow-[0_0_15px_rgba(201,169,110,0.3)]">02</div>
+          <h3 class="font-serif text-2xl mb-4">Neural Inference</h3>
+          <p class="font-sans text-secondary">Our proprietary ML models weigh factors instantly to calculate current and 5-year future valuations.</p>
+        </div>
+        <div class="reveal delay-300 relative z-10 text-center">
+          <div class="w-12 h-12 bg-bg border border-primary text-primary font-mono flex items-center justify-center mx-auto mb-6 rounded-full shadow-[0_0_15px_rgba(201,169,110,0.3)]">03</div>
+          <h3 class="font-serif text-2xl mb-4">Actionable Insights</h3>
+          <p class="font-sans text-secondary">Export deep analytics into intuitive dashboards or professional PDFs for client presentations.</p>
+        </div>
+      </div>
+    </section>
+
+
+\n    <!-- Final CTA -->
+    <section class="relative py-32 text-center overflow-hidden border-b border-bordercol">
+      <!-- Glow effect -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] max-w-[600px] max-h-[600px] bg-primary/10 rounded-full blur-[100px] pointer-events-none opacity-60 mix-blend-screen"></div>
+      
+      <div class="relative z-10 flex flex-col items-center justify-center">
+        <h2 class="reveal font-serif text-5xl md:text-7xl leading-none mb-6">
+          Ready to predict <br><span class="italic text-primary">the future?</span>
+        </h2>
+        <p class="reveal delay-100 max-w-xl mx-auto font-sans text-lg text-secondary mb-12">
+          Join top-tier enterprises using EstateAI to unlock hyper-accurate valuations and geospatial insights.
+        </p>
+        <a href="/dashboard" class="reveal delay-200 btn-editorial trans-editorial shadow-[0_0_20px_rgba(201,169,110,0.3)] hover:shadow-[0_0_40px_rgba(201,169,110,0.5)]">
+          Launch Enterprise App
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="max-w-7xl mx-auto py-12 px-6 border-l border-r border-bordercol text-center font-mono text-[10px] uppercase tracking-widest text-secondary">
+    &copy; 2026 EstateAI. All Rights Reserved.
+  </footer>
+
+  <script>
+    // Header Scroll Effect
+    window.addEventListener('scroll', () => {
+      const header = document.getElementById('headerNav');
+      const inner = document.getElementById('headerInner');
+      if (window.scrollY > 50) {
+        header.classList.remove('pt-8');
+        inner.classList.add('bg-bg/80', 'backdrop-blur-md');
+      } else {
+        header.classList.add('pt-8');
+        inner.classList.remove('bg-bg/80', 'backdrop-blur-md');
       }
     });
-  }, { threshold: 0.1 });
 
-  document.querySelectorAll('.feature-card').forEach((el, i) => {
-    el.style.opacity = 0;
-    el.style.transform = 'translateY(20px)';
-    el.style.transitionDelay = `${i * 0.1}s`;
-    observer.observe(el);
-  });
+    // Word Reveal Effect
+    const textEl = document.getElementById('revealText');
+    const words = textEl.innerText.split(' ');
+    textEl.innerHTML = words.map(w => `<span class="reveal-word">${w}</span>`).join(' ');
+    
+    window.addEventListener('scroll', () => {
+      const section = document.getElementById('revealSection');
+      const rect = section.getBoundingClientRect();
+      const progress = 1 - (rect.top / window.innerHeight);
+      
+      const spans = textEl.querySelectorAll('span');
+      spans.forEach((span, idx) => {
+        const threshold = 0.2 + (idx / spans.length) * 0.6; // Map progress to words
+        if (progress > threshold) {
+          span.style.opacity = '1';
+        } else {
+          span.style.opacity = '0.15';
+        }
+      });
+    });
 
-  // Auth logic
-  function openAuth(type) {
-    document.getElementById('authModal').classList.add('show');
-    switchTab(type);
-  }
-  function closeAuth() {
-    document.getElementById('authModal').classList.remove('show');
-  }
-  function switchTab(type) {
-    if(type === 'login') {
-      document.getElementById('tab-login').classList.add('active');
-      document.getElementById('tab-signup').classList.remove('active');
-      document.getElementById('form-login').style.display = 'block';
-      document.getElementById('form-signup').style.display = 'none';
-    } else {
-      document.getElementById('tab-signup').classList.add('active');
-      document.getElementById('tab-login').classList.remove('active');
-      document.getElementById('form-signup').style.display = 'block';
-      document.getElementById('form-login').style.display = 'none';
+    // Workflow tabs
+    function setStep(step) {
+      for(let i=1; i<=3; i++) {
+        document.getElementById(`step-desc-${i}`).style.maxHeight = '0';
+        document.getElementById(`step-num-${i}`).classList.remove('opacity-100', 'text-primary');
+        document.getElementById(`step-num-${i}`).classList.add('opacity-40');
+      }
+      document.getElementById(`step-desc-${step}`).style.maxHeight = '100px';
+      document.getElementById(`step-num-${step}`).classList.add('opacity-100', 'text-primary');
+      document.getElementById(`step-num-${step}`).classList.remove('opacity-40');
     }
-  }
-  
-  function doAuth() {
-    // Simulated Auth
-    localStorage.setItem('estate_user_token', 'user_123');
-    window.location.href = '/dashboard';
-  }
+    
+    // Init step 1
+    setTimeout(() => setStep(1), 500);
+  </script>
 
-  function startTrial() {
-    // Just go to dashboard, guest logic handled there
-    window.location.href = '/dashboard?guest=true';
-  }
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Reveal animations on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.1 });
 
-  // Close modal on outside click
-  document.getElementById('authModal').addEventListener('click', (e) => {
-    if(e.target === document.getElementById('authModal')) closeAuth();
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+    
+    // Add reveal class to main header elements dynamically for initial load
+    setTimeout(() => {
+      document.querySelectorAll('.hero-element').forEach((el, index) => {
+        el.classList.add('reveal', 'active');
+        el.style.transitionDelay = (index * 100) + 'ms';
+      });
+    }, 100);
   });
 </script>
 </body>
+
 </html>
