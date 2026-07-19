@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EstateAI — Predict Property Prices with AI-Powered Precision</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050505;
+  --bg-glass: rgba(10, 10, 10, 0.6);
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #FFFFFF;
+  --text-secondary: #888888;
+  --accent: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-primary); overflow-x: hidden; }
+
+/* Background mesh */
+.bg-mesh {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
+  background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15), transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15), transparent 50%);
+  filter: blur(60px);
+}
+
+/* Navbar */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 72px; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+  background: var(--bg-glass); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+}
+.logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.nav-links { display: flex; gap: 32px; }
+.nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text-primary); }
+.nav-actions { display: flex; align-items: center; gap: 16px; }
+.btn-ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+.btn-ghost:hover { background: rgba(255,255,255,0.05); }
+.btn-primary { background: var(--text-primary); color: var(--bg); border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-primary:hover { background: #e0e0e0; }
+.btn-gradient { background: var(--accent-gradient); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-gradient:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* Hero */
+.hero { padding: 160px 24px 80px; text-align: center; max-width: 900px; margin: 0 auto; }
+.hero h1 { font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: 1.1; margin-bottom: 24px; background: linear-gradient(180deg, #FFFFFF 0%, #AAAAAA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero p { font-size: 20px; color: var(--text-secondary); margin-bottom: 40px; font-weight: 400; max-width: 600px; margin-inline: auto; line-height: 1.5; }
+.hero-btns { display: flex; justify-content: center; gap: 16px; }
+.trust-bar { margin-top: 32px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* Dashboard Mockup */
+.mockup-container { max-width: 1100px; margin: 40px auto; padding: 0 24px; perspective: 1000px; }
+.mockup { background: #111; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.5); transform: rotateX(5deg); transition: transform 0.5s ease-out; }
+.mockup:hover { transform: rotateX(0deg); }
+.mockup-header { height: 40px; background: #1a1a1a; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
+.mockup-header .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; }
+.mockup-body { height: 500px; background: url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop') center/cover; filter: grayscale(1) brightness(0.3); position: relative; }
+.mockup-body::after { content: 'Live Dashboard Preview'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: 600; color: rgba(255,255,255,0.3); }
+
+/* Features */
+.features { padding: 120px 24px; max-width: 1200px; margin: 0 auto; }
+.section-title { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 64px; letter-spacing: -1px; }
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.feature-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 16px; padding: 32px; transition: all 0.3s; position: relative; overflow: hidden; }
+.feature-card:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-4px); background: rgba(255,255,255,0.04); }
+.feature-icon { font-size: 32px; margin-bottom: 24px; }
+.feature-card h3 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+.feature-card p { font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
+
+/* Stats */
+.stats { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 24px; background: rgba(255,255,255,0.01); display: flex; justify-content: center; gap: 80px; text-align: center; }
+.stat-num { font-size: 48px; font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-label { font-size: 14px; color: var(--text-secondary); margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Footer */
+.cta-section { padding: 120px 24px; text-align: center; }
+footer { border-top: 1px solid var(--border); padding: 48px 48px; display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 14px; }
+
+/* Auth Modal */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
+.modal-overlay.show { display: flex; opacity: 1; }
+.auth-modal { background: #111; border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 400px; padding: 32px; transform: scale(0.95); transition: transform 0.3s; }
+.modal-overlay.show .auth-modal { transform: scale(1); }
+.auth-tabs { display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+.auth-tab { cursor: pointer; color: var(--text-secondary); font-weight: 600; font-size: 15px; transition: 0.2s; }
+.auth-tab.active { color: var(--text-primary); }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+.form-group input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; outline: none; font-family: inherit; }
+.form-group input:focus { border-color: var(--text-primary); }
+.auth-btn { width: 100%; margin-top: 16px; }
+.social-btn { width: 100%; background: transparent; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 8px; font-weight: 500; cursor: pointer; margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.social-btn:hover { background: rgba(255,255,255,0.05); }
+.close-modal { position: absolute; top: 16px; right: 16px; cursor: pointer; color: var(--text-secondary); font-size: 20px; }
+.close-modal:hover { color: white; }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 42px; }
+  .stats { flex-direction: column; gap: 40px; }
+  .navbar { padding: 0 24px; }
+  .nav-links { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="logo">🏡 EstateAI</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it Works</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <div class="nav-actions">
+    <button class="btn-ghost" onclick="openAuth('login')">Login</button>
+    <button class="btn-primary" onclick="startTrial()">Start Free Trial</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <h1>Predict Property Prices with AI-Powered Precision</h1>
+  <p>Make smarter real estate decisions in Bengaluru. Instant ML valuations, real-time nearby amenities, and Llama-3 powered market insights—all in one beautiful dashboard.</p>
+  <div class="hero-btns">
+    <button class="btn-gradient" onclick="startTrial()">Start Free Trial</button>
+    <button class="btn-ghost" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">See How It Works</button>
+  </div>
+  <div class="trust-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> No credit card required
+    <span style="margin: 0 8px;">·</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Setup in 2 minutes
+  </div>
+</section>
+
+<!-- MOCKUP -->
+<div class="mockup-container">
+  <div class="mockup">
+    <div class="mockup-header">
+      <div class="dot" style="background:#ff5f56"></div>
+      <div class="dot" style="background:#ffbd2e"></div>
+      <div class="dot" style="background:#27c93f"></div>
+    </div>
+    <div class="mockup-body"></div>
+  </div>
+</div>
+
+<!-- STATS -->
+<section class="stats">
+  <div>
+    <div class="stat-num">240+</div>
+    <div class="stat-label">Locations Covered</div>
+  </div>
+  <div>
+    <div class="stat-num">95%</div>
+    <div class="stat-label">Prediction Accuracy</div>
+  </div>
+  <div>
+    <div class="stat-num">10k+</div>
+    <div class="stat-label">Properties Analyzed</div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <h2 class="section-title">Built for Modern Real Estate</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <h3>ML Price Predictor</h3>
+      <p>Advanced regression models provide an accurate Min-Max price range based on real market data.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌍</div>
+      <h3>Live Location & Amenities</h3>
+      <p>Integrated Geoapify maps automatically scan a 3km radius for schools, hospitals, and transit.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏷️</div>
+      <h3>AI Lifestyle Badges</h3>
+      <p>Instantly know if a property is "Family Friendly" or a "Shopper's Paradise" with AI tagging.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤖</div>
+      <h3>Groq Llama-3 Analysis</h3>
+      <p>Get dynamic Investment and Safety scores powered by the fastest LLM inference on the market.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💰</div>
+      <h3>Financial Hub</h3>
+      <p>Built-in EMI calculator and Rental Yield estimators to analyze your ROI instantly.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📄</div>
+      <h3>One-Click PDF Reports</h3>
+      <p>Generate professional client-ready reports featuring all data, maps, and insights instantly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2 style="font-size: 48px; font-weight: 800; margin-bottom: 24px;">Ready to make smarter decisions?</h2>
+  <button class="btn-gradient" onclick="startTrial()">Start Free Trial Now</button>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>© 2026 EstateAI. All rights reserved.</div>
+  <div style="display: flex; gap: 24px;">
+    <a href="#" style="color: inherit; text-decoration: none;">Privacy</a>
+    <a href="#" style="color: inherit; text-decoration: none;">Terms</a>
+    <a href="#" style="color: inherit; text-decoration: none;">Contact</a>
+  </div>
+</footer>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="auth-modal">
+    <div class="close-modal" onclick="closeAuth()">×</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log In</div>
+      <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
+    </div>
+    
+    <div id="form-login">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" placeholder="••••••••">
+      </div>
+      <button class="btn-primary auth-btn" onclick="doAuth()">Log In</button>
+    </div>
+
+    <div id="form-signup" style="display:none;">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" placeholder="Create a strong password">
+      </div>
+      <button class="btn-primary auth-btn" onclick="doAuth()">Create Account</button>
+    </div>
+    
+    <button class="social-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+  </div>
+</div>
+
+<script>
+  // Simple animations for feature cards
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = 1;
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.feature-card').forEach((el, i) => {
+    el.style.opacity = 0;
+    el.style.transform = 'translateY(20px)';
+    el.style.transitionDelay = `${i * 0.1}s`;
+    observer.observe(el);
+  });
+
+  // Auth logic
+  function openAuth(type) {
+    document.getElementById('authModal').classList.add('show');
+    switchTab(type);
+  }
+  function closeAuth() {
+    document.getElementById('authModal').classList.remove('show');
+  }
+  function switchTab(type) {
+    if(type === 'login') {
+      document.getElementById('tab-login').classList.add('active');
+      document.getElementById('tab-signup').classList.remove('active');
+      document.getElementById('form-login').style.display = 'block';
+      document.getElementById('form-signup').style.display = 'none';
+    } else {
+      document.getElementById('tab-signup').classList.add('active');
+      document.getElementById('tab-login').classList.remove('active');
+      document.getElementById('form-signup').style.display = 'block';
+      document.getElementById('form-login').style.display = 'none';
+    }
+  }
+  
+  function doAuth() {
+    // Simulated Auth
+    localStorage.setItem('estate_user_token', 'user_123');
+    window.location.href = '/dashboard';
+  }
+
+  function startTrial() {
+    // Just go to dashboard, guest logic handled there
+    window.location.href = '/dashboard?guest=true';
+  }
+
+  // Close modal on outside click
+  document.getElementById('authModal').addEventListener('click', (e) => {
+    if(e.target === document.getElementById('authModal')) closeAuth();
+  });
+</script>
+</body>
+</html>
