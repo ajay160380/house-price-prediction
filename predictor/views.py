@@ -9,23 +9,58 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 import requests
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 
 logger = logging.getLogger('django.server')
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), 'ml_models', 'banglore_home_prices_model.pickle')
-COLUMNS_PATH = os.path.join(os.path.dirname(__file__), 'ml_models', 'columns.json')
+model_blr = None
+data_columns_blr = None
+locations_blr = None
+model_lko = None
+data_columns_lko = None
+model_india = None
+hierarchy_india = None
 
-with open(MODEL_PATH, 'rb') as f:
-    model = pickle.load(f)
+# Load Bangalore model
+try:
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/banglore_home_prices_model.pickle'), 'rb') as f:
+        model_blr = pickle.load(f)
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/columns.json'), 'r') as f:
+        data_columns_blr = json.load(f)['data_columns']
+    locations_blr = data_columns_blr[3:]
+    logger.info("Loaded Bangalore model successfully.")
+except Exception as e:
+    logger.error(f"Failed to load Bangalore model: {e}")
+    locations_blr = []
 
-with open(COLUMNS_PATH) as f:
-    columns_data = json.load(f)
+# Load Lucknow model
+try:
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/lucknow_home_prices_model.pickle'), 'rb') as f:
+        model_lko = pickle.load(f)
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/lucknow_columns.json'), 'r') as f:
+        data_columns_lko = json.load(f)['data_columns']
+    locations_lko = data_columns_lko[3:]
+    logger.info("Loaded Lucknow model successfully.")
+except Exception as e:
+    logger.error(f"Failed to load Lucknow model: {e}")
+    model_lko = None
+    data_columns_lko = []
+    locations_lko = []
 
-data_columns = columns_data['data_columns']
-locations = data_columns[3:]
+model_india = None
+hierarchy_india = None
+# Load Pan-India model
+try:
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/india_home_prices_model.pickle'), 'rb') as f:
+        model_india = pickle.load(f)
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/india_hierarchy.json'), 'r') as f:
+        hierarchy_india = json.load(f)
+    logger.info("Loaded Pan-India model successfully.")
+except Exception as e:
+    logger.error(f"Failed to load Pan-India model: {e}")
 
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
@@ -225,7 +260,16 @@ def index(request):
 
 
 def get_location_names(request):
-    return JsonResponse({'locations': locations})
+    city = request.GET.get('city', 'bangalore').lower()
+    if city == 'lucknow':
+        return JsonResponse({'locations': locations_lko})
+    elif city == 'india':
+        # Handled separately via hierarchy
+        return JsonResponse({'locations': []})
+    return JsonResponse({'locations': locations_blr})
+
+def get_india_hierarchy(request):
+    return JsonResponse({'hierarchy': hierarchy_india or {}})
 
 
 @csrf_exempt
@@ -234,18 +278,19 @@ def get_location_insights(request):
         return JsonResponse({'error': 'POST request required'}, status=400)
 
     location = request.POST.get('location', '')
+    city = request.POST.get('city', 'bangalore').title()
     if not location:
         return JsonResponse({'error': 'Location is required'}, status=400)
 
     if not GROQ_API_KEY:
-        return JsonResponse({'insight': f'{location} is a prominent neighborhood in Bengaluru with growing real estate demand and excellent connectivity to major IT corridors.'})
+        return JsonResponse({'insight': f'{location} is a prominent neighborhood in {city} with growing real estate demand and excellent connectivity to major areas.'})
 
     try:
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
         prompt = (
             f'Return a JSON object with keys: insight_text (2-sentence professional real estate '
-            f'insight about {location}, Bangalore, covering connectivity, infrastructure, and '
+            f'insight about {location}, {city}, covering connectivity, infrastructure, and '
             f'market trends), investment_score (number 0-10 for ROI potential), safety_score '
             f'(number 0-10 for neighborhood safety and infrastructure). Only valid JSON.'
         )
@@ -282,17 +327,40 @@ def predict_home_price(request):
     bath = int(request.POST.get('bath', 0))
     bhk = int(request.POST.get('bhk', 0))
     location = request.POST.get('location', '')
+    city = request.POST.get('city', 'bangalore').lower()
 
-    x = np.zeros(len(data_columns))
-    x[0] = sqft
-    x[1] = bath
-    x[2] = bhk
+    if city == 'india' and model_india:
+        state = request.POST.get('state', '')
+        actual_city = request.POST.get('actual_city', '')
+        import pandas as pd
+        x_df = pd.DataFrame([{
+            'State': state,
+            'City': actual_city,
+            'Locality': location,
+            'BHK': bhk,
+            'Bathrooms': bath,
+            'Size_in_SqFt': sqft
+        }])
+        predicted_price = model_india.predict(x_df)[0]
+    else:
+        if city == 'lucknow' and model_lko:
+            data_columns = data_columns_lko
+            model = model_lko
+        else:
+            data_columns = data_columns_blr
+            model = model_blr
 
-    if location in data_columns:
-        loc_index = data_columns.index(location)
-        x[loc_index] = 1
+        x = np.zeros(len(data_columns))
+        x[0] = sqft
+        x[1] = bath
+        x[2] = bhk
 
-    predicted_price = model.predict([x])[0]
+        if location in data_columns:
+            loc_index = data_columns.index(location)
+            x[loc_index] = 1
+
+        predicted_price = model.predict([x])[0]
+
     base_price = round(predicted_price, 2)
     low_price = round(predicted_price * 0.95, 2)
     high_price = round(predicted_price * 1.05, 2)
@@ -617,6 +685,9 @@ def get_nearby_amenities(request):
     lat = request.POST.get('lat', '')
     lon = request.POST.get('lon', '')
     location_name = request.POST.get('location', '')
+    city = request.POST.get('city', 'bangalore').title()
+    state_val = request.POST.get('state', '')
+    actual_city = request.POST.get('actual_city', '')
 
     logger.info(f"get_nearby_amenities: location='{location_name}', lat='{lat}', lon='{lon}'")
 
@@ -625,7 +696,14 @@ def get_nearby_amenities(request):
     if not lat or not lon:
         if location_name:
             try:
-                q = requests.utils.quote(f"{location_name}, Bengaluru, Karnataka, India")
+                if city.lower() == 'lucknow':
+                    query_str = f"{location_name}, Lucknow, Uttar Pradesh, India"
+                elif city.lower() == 'india' and actual_city and state_val:
+                    query_str = f"{location_name}, {actual_city}, {state_val}, India"
+                else:
+                    query_str = f"{location_name}, Bengaluru, Karnataka, India"
+                    
+                q = requests.utils.quote(query_str)
                 nom_url = f"https://nominatim.openstreetmap.org/search?format=json&q={q}&limit=1"
                 logger.info(f"Geocoding via Nominatim: {nom_url}")
                 resp = requests.get(
@@ -641,13 +719,66 @@ def get_nearby_amenities(request):
                 else:
                     logger.warning(f"Geocoding returned no results for '{location_name}'. Using fallback.")
                     geocoding_failed = True
-                    lat = "12.9716"
-                    lon = "77.5946"
+                    if city.lower() == 'lucknow':
+                        exact_coords = {
+                            'Amity University Road': ["26.8601", "81.0215"],
+                            'Chinhat': ["26.8770", "81.0315"],
+                            'Faizabad Road': ["26.8837", "81.0069"],
+                            'Gomti Nagar': ["26.8528", "80.9996"],
+                            'Indira Nagar': ["26.8785", "80.9961"],
+                            'Jankipuram': ["26.9213", "80.9419"],
+                            'Kursi Road': ["26.9298", "80.9634"],
+                            'Malhaur': ["26.8575", "81.0366"],
+                            'Sitapur Road': ["26.9360", "80.9234"],
+                            'Uattardhona': ["26.8631", "81.0494"]
+                        }
+                        if location_name in exact_coords:
+                            lat, lon = exact_coords[location_name]
+                        else:
+                            base_lat, base_lon = 26.8467, 80.9462
+                    elif city.lower() == 'india':
+                        # Try to geocode just the city as a fallback
+                        if actual_city and state_val:
+                            try:
+                                fb_q = requests.utils.quote(f"{actual_city}, {state_val}, India")
+                                fb_url = f"https://nominatim.openstreetmap.org/search?format=json&q={fb_q}&limit=1"
+                                fb_resp = requests.get(fb_url, headers={"User-Agent": "EstateAI/2.0"}, timeout=5).json()
+                                if fb_resp and len(fb_resp) > 0:
+                                    base_lat, base_lon = float(fb_resp[0]["lat"]), float(fb_resp[0]["lon"])
+                                else:
+                                    base_lat, base_lon = 22.9074, 79.0881
+                            except Exception:
+                                base_lat, base_lon = 22.9074, 79.0881
+                        else:
+                            base_lat, base_lon = 22.9074, 79.0881
+                    else:
+                        base_lat, base_lon = 12.9716, 77.5946
+                    if geocoding_failed and 'base_lat' in locals():
+                        lat, lon = str(base_lat), str(base_lon)
             except Exception as e:
                 logger.error(f"Geocoding failed for '{location_name}': {e}")
                 geocoding_failed = True
-                lat = "12.9716"
-                lon = "77.5946"
+                if city.lower() == 'lucknow':
+                    exact_coords = {
+                        'Amity University Road': ["26.8601", "81.0215"],
+                        'Chinhat': ["26.8770", "81.0315"],
+                        'Faizabad Road': ["26.8837", "81.0069"],
+                        'Gomti Nagar': ["26.8528", "80.9996"],
+                        'Indira Nagar': ["26.8785", "80.9961"],
+                        'Jankipuram': ["26.9213", "80.9419"],
+                        'Kursi Road': ["26.9298", "80.9634"],
+                        'Malhaur': ["26.8575", "81.0366"],
+                        'Sitapur Road': ["26.9360", "80.9234"],
+                        'Uattardhona': ["26.8631", "81.0494"]
+                    }
+                    if location_name in exact_coords:
+                        lat, lon = exact_coords[location_name]
+                    else:
+                        lat = "26.8467"
+                        lon = "80.9462"
+                else:
+                    lat = "12.9716"
+                    lon = "77.5946"
         else:
             return JsonResponse({'error': 'Lat/lon or location required'}, status=400)
 
@@ -834,6 +965,7 @@ def get_ai_analysis(request):
     location = request.POST.get('location', '')
     price = request.POST.get('price', '')
     amenities_json = request.POST.get('amenities', '{}')
+    city = request.POST.get('city', 'bangalore').title()
 
     if not location:
         return JsonResponse({'error': 'Location is required'}, status=400)
@@ -883,9 +1015,9 @@ def get_ai_analysis(request):
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
 
-        prompt = f"""You are a Bengaluru real estate expert. Analyze this locality:
+        prompt = f"""You are a {city} real estate expert. Analyze this locality:
 
-Location: {location}, Bangalore
+Location: {location}, {city}
 {prices_note}
 Nearby Amenities:
 - Schools: {school_count} (nearest: {nearest_school})

@@ -1175,9 +1175,33 @@ select { -webkit-appearance: none; cursor: pointer; }
                   <label class="selector-item"><input type="radio" name="bath" value="5"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h16a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M6 12V5a2 2 0 0 1 2-2h3v2.25"/><path d="M4 21l1-1.5"/><path d="M20 21l-1-1.5"/></svg><span class="num">5</span></span></label>
                 </div>
               </div>
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label>Region / Dataset</label>
+                <select id="city" name="city" required class="loc-dropdown">
+                  <option value="bangalore" selected>Bangalore (Detailed)</option>
+                  <option value="lucknow">Lucknow (Detailed)</option>
+                  <option value="india">Pan-India (20 States)</option>
+                </select>
+              </div>
+
+              <div id="indiaFields" style="display: none;">
+                  <div class="form-group" style="margin-bottom: 20px;">
+                    <label>State</label>
+                    <select id="stateSelect" name="state" class="loc-dropdown">
+                      <option value="">Select State...</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 20px;">
+                    <label>City</label>
+                    <select id="actualCitySelect" name="actual_city" class="loc-dropdown">
+                      <option value="">Select City...</option>
+                    </select>
+                  </div>
+              </div>
+
               <div class="form-group">
                 <label>Location</label>
-                <select id="location" name="location" required><option value="">Select neighborhood...</option></select>
+                <select id="location" name="location" required class="loc-dropdown"><option value="">Select neighborhood...</option></select>
               </div>
               <button type="submit" class="btn-primary">Predict Value →</button>
             </form>
@@ -1604,6 +1628,11 @@ select { -webkit-appearance: none; cursor: pointer; }
   const sqftSlider = document.getElementById('sqftSlider');
   const sliderValue = document.getElementById('sliderValue');
   const locationSelect = document.getElementById('location');
+  const citySelect = document.getElementById('city');
+  const indiaFields = document.getElementById('indiaFields');
+  const stateSelect = document.getElementById('stateSelect');
+  const actualCitySelect = document.getElementById('actualCitySelect');
+  let indiaHierarchy = {};
   const loading = document.getElementById('loading');
   const resultBadge = document.getElementById('resultBadge');
   const priceRange = document.getElementById('priceRange');
@@ -1677,10 +1706,48 @@ select { -webkit-appearance: none; cursor: pointer; }
 
   async function loadLocations() {
     try {
-      const res = await fetch('/get_location_names');
+      const city = citySelect ? citySelect.value.toLowerCase() : 'bangalore';
+      
+      const bathroomsContainer = document.querySelector('label.selector-item input[name="bath"]').closest('.form-group');
+      if (city === 'india') {
+          indiaFields.style.display = 'block';
+          if (bathroomsContainer) bathroomsContainer.style.display = 'block';
+          
+          if (Object.keys(indiaHierarchy).length === 0) {
+              const res = await fetch('/get_india_hierarchy');
+              const data = await res.json();
+              indiaHierarchy = data.hierarchy || {};
+          }
+          
+          stateSelect.innerHTML = '<option value="">Select State...</option>';
+          for (const st in indiaHierarchy) {
+              stateSelect.innerHTML += `<option value="${st}">${st}</option>`;
+          }
+          actualCitySelect.innerHTML = '<option value="">Select City...</option>';
+          locationSelect.innerHTML = '<option value="">Select locality...</option>';
+          return;
+      } else {
+          indiaFields.style.display = 'none';
+          if (bathroomsContainer) bathroomsContainer.style.display = 'block';
+      }
+
+      if (window.mapInstance) {
+          if (city === 'lucknow') {
+              window.mapInstance.flyTo([26.8467, 80.9462], 12);
+          } else {
+              window.mapInstance.flyTo([12.9716, 77.5946], 12);
+          }
+      }
+
+      const res = await fetch('/get_location_names?city=' + city);
       const data = await res.json();
       const compA = document.getElementById('compareLocA');
       const compB = document.getElementById('compareLocB');
+
+      locationSelect.innerHTML = '<option value="">Select neighborhood...</option>';
+      if (compA) compA.innerHTML = '<option value="">Select first neighborhood...</option>';
+      if (compB) compB.innerHTML = '<option value="">Select second neighborhood...</option>';
+
       data.locations.forEach(loc => {
         const opt = document.createElement('option');
         opt.value = loc; opt.textContent = loc;
@@ -1689,6 +1756,38 @@ select { -webkit-appearance: none; cursor: pointer; }
         if (compB) { const oB = opt.cloneNode(true); compB.appendChild(oB); }
       });
     } catch(e) { console.error('Locations fetch failed:', e); }
+  }
+
+  if (citySelect) {
+    citySelect.addEventListener('change', loadLocations);
+  }
+
+  // Handle India State Change
+  if (stateSelect) {
+      stateSelect.addEventListener('change', function() {
+          const st = this.value;
+          actualCitySelect.innerHTML = '<option value="">Select City...</option>';
+          locationSelect.innerHTML = '<option value="">Select locality...</option>';
+          if (st && indiaHierarchy[st]) {
+              for (const c in indiaHierarchy[st]) {
+                  actualCitySelect.innerHTML += `<option value="${c}">${c}</option>`;
+              }
+          }
+      });
+  }
+
+  // Handle India City Change
+  if (actualCitySelect) {
+      actualCitySelect.addEventListener('change', function() {
+          const st = stateSelect.value;
+          const c = this.value;
+          locationSelect.innerHTML = '<option value="">Select locality...</option>';
+          if (st && c && indiaHierarchy[st][c]) {
+              indiaHierarchy[st][c].forEach(loc => {
+                  locationSelect.innerHTML += `<option value="${loc}">${loc}</option>`;
+              });
+          }
+      });
   }
 
   // ===== MAP =====
@@ -1707,7 +1806,18 @@ select { -webkit-appearance: none; cursor: pointer; }
     
     // Fetch boundary polygon from OSM Nominatim
     try {
-        const query = encodeURIComponent(location + ', Bengaluru, Karnataka, India');
+        const city = citySelect ? citySelect.value.toLowerCase() : 'bangalore';
+        const isLucknow = city === 'lucknow';
+        const isIndia = city === 'india';
+        
+        let cityQuery = '';
+        if (isIndia && actualCitySelect && stateSelect) {
+            cityQuery = `, ${actualCitySelect.value}, ${stateSelect.value}, India`;
+        } else {
+            cityQuery = isLucknow ? ', Lucknow, Uttar Pradesh, India' : ', Bengaluru, Karnataka, India';
+        }
+
+        const query = encodeURIComponent(location + cityQuery);
         const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&polygon_geojson=1&limit=1`;
         
         const response = await fetch(url, { headers: { 'Accept-Language': 'en' }});
@@ -1747,15 +1857,119 @@ select { -webkit-appearance: none; cursor: pointer; }
                 dropPulseMarker(lat, lon, location);
             }
         } else {
-            // Absolute Fallback (Simulated) if OSM fails
-            let mockLat = 12.9716 + (Math.random() - 0.5) * 0.15;
-            let mockLng = 77.5946 + (Math.random() - 0.5) * 0.15;
+            // Try fetching just the city center as a fallback before Absolute Fallback
+            if (isIndia && actualCitySelect && stateSelect) {
+                try {
+                    const fallbackQuery = encodeURIComponent(`${actualCitySelect.value}, ${stateSelect.value}, India`);
+                    const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${fallbackQuery}&format=json&limit=1`;
+                    const fbRes = await fetch(fallbackUrl, { headers: { 'Accept-Language': 'en' }});
+                    const fbData = await fbRes.json();
+                    if (fbData && fbData.length > 0) {
+                        const fbPlace = fbData[0];
+                        if (typeof dropPulseMarker === 'function') {
+                            dropPulseMarker(parseFloat(fbPlace.lat), parseFloat(fbPlace.lon), location + ' (Approx)');
+                        }
+                        if(mapLoading) mapLoading.classList.add('hidden');
+                        return;
+                    }
+                } catch (fbErr) {
+                    console.warn("City fallback failed:", fbErr);
+                }
+            }
+            
+            // Absolute Fallback (Simulated) if OSM fails completely
+            let baseLat = 12.9716;
+            let baseLng = 77.5946;
+            
+            if (isLucknow) {
+                baseLat = 26.8467;
+                baseLng = 80.9462;
+            } else if (isIndia) {
+                // Approximate center of India as fallback
+                baseLat = 22.9074;
+                baseLng = 79.0881;
+            }
+            
+            const exactCoords = {
+                'Amity University Road': [26.8601, 81.0215],
+                'Chinhat': [26.8770, 81.0315],
+                'Faizabad Road': [26.8837, 81.0069],
+                'Gomti Nagar': [26.8528, 80.9996],
+                'Indira Nagar': [26.8785, 80.9961],
+                'Jankipuram': [26.9213, 80.9419],
+                'Kursi Road': [26.9298, 80.9634],
+                'Malhaur': [26.8575, 81.0366],
+                'Sitapur Road': [26.9360, 80.9234],
+                'Uattardhona': [26.8631, 81.0494]
+            };
+
+            let mockLat, mockLng;
+            if (isLucknow && exactCoords[location]) {
+                mockLat = exactCoords[location][0];
+                mockLng = exactCoords[location][1];
+            } else {
+                mockLat = baseLat + (Math.random() - 0.5) * 0.15;
+                mockLng = baseLng + (Math.random() - 0.5) * 0.15;
+            }
             if (typeof dropPulseMarker === 'function') dropPulseMarker(mockLat, mockLng, location);
         }
     } catch(e) {
         console.warn('Geocoding failed:', e);
-        let mockLat = 12.9716 + (Math.random() - 0.5) * 0.15;
-        let mockLng = 77.5946 + (Math.random() - 0.5) * 0.15;
+        const city = citySelect ? citySelect.value.toLowerCase() : 'bangalore';
+        const isLucknow = city === 'lucknow';
+        const isIndia = city === 'india';
+        
+        // Try fallback for catch block too
+        if (isIndia && actualCitySelect && stateSelect) {
+            try {
+                const fallbackQuery = encodeURIComponent(`${actualCitySelect.value}, ${stateSelect.value}, India`);
+                const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${fallbackQuery}&format=json&limit=1`;
+                const fbRes = await fetch(fallbackUrl, { headers: { 'Accept-Language': 'en' }});
+                const fbData = await fbRes.json();
+                if (fbData && fbData.length > 0) {
+                    const fbPlace = fbData[0];
+                    if (typeof dropPulseMarker === 'function') {
+                        dropPulseMarker(parseFloat(fbPlace.lat), parseFloat(fbPlace.lon), location + ' (Approx)');
+                    }
+                    if(mapLoading) mapLoading.classList.add('hidden');
+                    return;
+                }
+            } catch (fbErr) {
+                console.warn("City fallback failed in catch:", fbErr);
+            }
+        }
+        
+        let baseLat = 12.9716;
+        let baseLng = 77.5946;
+        if (isLucknow) {
+            baseLat = 26.8467;
+            baseLng = 80.9462;
+        } else if (isIndia) {
+            baseLat = 22.9074;
+            baseLng = 79.0881;
+        }
+        
+        const exactCoords = {
+            'Amity University Road': [26.8601, 81.0215],
+            'Chinhat': [26.8770, 81.0315],
+            'Faizabad Road': [26.8837, 81.0069],
+            'Gomti Nagar': [26.8528, 80.9996],
+            'Indira Nagar': [26.8785, 80.9961],
+            'Jankipuram': [26.9213, 80.9419],
+            'Kursi Road': [26.9298, 80.9634],
+            'Malhaur': [26.8575, 81.0366],
+            'Sitapur Road': [26.9360, 80.9234],
+            'Uattardhona': [26.8631, 81.0494]
+        };
+
+        let mockLat, mockLng;
+        if (isLucknow && exactCoords[location]) {
+            mockLat = exactCoords[location][0];
+            mockLng = exactCoords[location][1];
+        } else {
+            mockLat = baseLat + (Math.random() - 0.5) * 0.15;
+            mockLng = baseLng + (Math.random() - 0.5) * 0.15;
+        }
         if (typeof dropPulseMarker === 'function') dropPulseMarker(mockLat, mockLng, location);
     }
     
@@ -1788,7 +2002,8 @@ select { -webkit-appearance: none; cursor: pointer; }
   async function fetchInsight(location) {
     if (!location) return;
     try {
-      const fd = new FormData(); fd.append('location', location);
+      const city = document.getElementById('city') ? document.getElementById('city').value : 'bangalore';
+      const fd = new FormData(); fd.append('location', location); fd.append('city', city);
       const res = await fetch('/get_location_insights', { method:'POST', body:fd });
       const data = await res.json();
       const txt = data.insight_text || 'No insight available.';
@@ -2096,8 +2311,10 @@ select { -webkit-appearance: none; cursor: pointer; }
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 90000);
+      const city = document.getElementById('city') ? document.getElementById('city').value : 'bangalore';
       const fd = new FormData();
       fd.append('location', location);
+      fd.append('city', city);
       const res = await fetch('/get_nearby_amenities', { method:'POST', body:fd, signal:controller.signal });
       clearTimeout(timeout);
       const data = await res.json();
@@ -2364,8 +2581,9 @@ select { -webkit-appearance: none; cursor: pointer; }
           const bhk = document.querySelector('input[name="bhk"]:checked').value;
           const bath = document.querySelector('input[name="bath"]:checked').value;
           
-          const fdA = new FormData(); fdA.append('location', locA); fdA.append('total_sqft', sqft); fdA.append('bhk', bhk); fdA.append('bath', bath);
-          const fdB = new FormData(); fdB.append('location', locB); fdB.append('total_sqft', sqft); fdB.append('bhk', bhk); fdB.append('bath', bath);
+          const city = document.getElementById('city') ? document.getElementById('city').value : 'bangalore';
+          const fdA = new FormData(); fdA.append('location', locA); fdA.append('sqft', sqft); fdA.append('bhk', bhk); fdA.append('bath', bath); fdA.append('city', city);
+          const fdB = new FormData(); fdB.append('location', locB); fdB.append('sqft', sqft); fdB.append('bhk', bhk); fdB.append('bath', bath); fdB.append('city', city);
           
           const [resA, resB] = await Promise.all([
               fetch('/predict_home_price', { method:'POST', body:fdA }),
