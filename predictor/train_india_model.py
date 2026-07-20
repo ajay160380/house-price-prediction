@@ -66,9 +66,10 @@ model = Pipeline([
 print("Training model (this might take a few seconds)...")
 model.fit(X, y)
 
-model_path = os.path.join(os.path.dirname(__file__), 'ml_models', 'india_home_prices_model.pickle')
-with open(model_path, 'wb') as f:
+import lzma
+model_path = os.path.join(os.path.dirname(__file__), 'ml_models', 'india_home_prices_model.pickle.xz')
+with lzma.open(model_path, 'wb') as f:
     pickle.dump(model, f)
-
 print(f"Model saved to {model_path}")
-print("Training R^2 Score:", model.score(X, y))
+
+print(f"Training R^2 Score: {model.score(X, y)}")
