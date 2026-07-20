@@ -5,5 +5,4 @@ venv/
 *.pyc
 *.sqlite3
 .DS_Store
-*.pickle
 *.csv

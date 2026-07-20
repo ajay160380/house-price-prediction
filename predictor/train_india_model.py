@@ -5,8 +5,8 @@ import json
 import os
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.linear_model import LinearRegression
 
 print("Loading data...")
 df = pd.read_csv('predictor/india_housing_prices.csv')
@@ -49,26 +49,24 @@ X = df[['State', 'City', 'Locality', 'BHK', 'Bathrooms', 'Size_in_SqFt']]
 y = df['Price_in_Lakhs']
 
 print("Building pipeline...")
-from sklearn.ensemble import RandomForestRegressor
-
 preprocessor = ColumnTransformer(
     transformers=[
-        ('cat', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1), ['State', 'City', 'Locality'])
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['State', 'City', 'Locality']),
+        ('num', StandardScaler(), ['BHK', 'Bathrooms', 'Size_in_SqFt'])
     ],
     remainder='passthrough'
 )
 
 model = Pipeline([
     ('preprocessor', preprocessor),
-    ('regressor', RandomForestRegressor(n_estimators=25, max_depth=20, n_jobs=-1, random_state=42))
+    ('regressor', LinearRegression())
 ])
 
 print("Training model (this might take a few seconds)...")
 model.fit(X, y)
 
-import lzma
-model_path = os.path.join(os.path.dirname(__file__), 'ml_models', 'india_home_prices_model.pickle.xz')
-with lzma.open(model_path, 'wb') as f:
+model_path = os.path.join(os.path.dirname(__file__), 'ml_models', 'india_home_prices_model.pickle')
+with open(model_path, 'wb') as f:
     pickle.dump(model, f)
 print(f"Model saved to {model_path}")
 

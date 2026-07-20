@@ -54,10 +54,9 @@ model_india = None
 hierarchy_india = None
 # Load Pan-India model
 try:
-    import lzma
     with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/india_hierarchy.json'), 'r') as f:
         hierarchy_india = json.load(f)
-    with lzma.open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/india_home_prices_model.pickle.xz'), 'rb') as f:
+    with open(os.path.join(settings.BASE_DIR, 'predictor/ml_models/india_home_prices_model.pickle'), 'rb') as f:
         model_india = pickle.load(f)
     logger.info("Loaded Pan-India model successfully.")
 except Exception as e:
