@@ -431,7 +431,7 @@ def _get_element_coords(element):
 def _fetch_via_geoapify(lat, lon):
     api_key = "f10c50087c554ce39210d77d19ede592"
     categories = "education.school,healthcare,public_transport.subway,leisure.park,catering.restaurant,commercial.shopping_mall,public_transport.bus"
-    url = f"https://api.geoapify.com/v2/places?categories={categories}&filter=circle:{lon},{lat},2000&limit=50&apiKey={api_key}"
+    url = f"https://api.geoapify.com/v2/places?categories={categories}&filter=circle:{lon},{lat},2500&limit=500&apiKey={api_key}"
     
     logger.info(f"Fetching Geoapify for ({lat}, {lon})")
     try:
@@ -792,17 +792,44 @@ def get_nearby_amenities(request):
         logger.info(f"Cache hit for ({lat}, {lon})")
         return JsonResponse(cached)
 
-    # 4. Try Overpass
-    if geocoding_failed:
-        results = None
-    else:
-        logger.info(f"Fetching amenities for ({lat}, {lon}) via Geoapify...")
-        results = _fetch_via_geoapify(lat, lon)
+    # 4. Try APIs and merge results
+    results = {cat: [] for cat in CATEGORY_ORDER}
+    seen = set()
 
+    logger.info(f"Fetching amenities for ({lat}, {lon}) via Overpass...")
+    op_res = _fetch_via_overpass(lat, lon)
+    if op_res:
+        for cat, items in op_res.items():
+            for item in items:
+                dedup = (cat, item["name"], round(item["lat"], 3), round(item["lon"], 3))
+                if dedup not in seen:
+                    seen.add(dedup)
+                    results[cat].append(item)
 
+    logger.info(f"Fetching amenities for ({lat}, {lon}) via Geoapify...")
+    geo_res = _fetch_via_geoapify(lat, lon)
+    if geo_res:
+        for cat, items in geo_res.items():
+            for item in items:
+                dedup = (cat, item["name"], round(item["lat"], 3), round(item["lon"], 3))
+                if dedup not in seen:
+                    seen.add(dedup)
+                    results[cat].append(item)
+
+    # Sort merged results by distance
+    for cat in CATEGORY_ORDER:
+        results[cat].sort(key=lambda x: x["distance_km"])
+
+    total_found = sum(len(v) for v in results.values())
+    if total_found == 0:
+        logger.info(f"Fetching amenities for ({lat}, {lon}) via OSM API...")
+        osm_res = _fetch_via_osm_api(lat, lon)
+        if osm_res:
+            results = osm_res
+            total_found = sum(len(v) for v in results.values())
 
     # 6. If all failed, check fallback
-    if not results:
+    if total_found == 0:
         fallback = _get_fallback_amenities(location_name, lat, lon)
         if fallback:
             logger.info(f"Fallback match for '{location_name}' after API failures")

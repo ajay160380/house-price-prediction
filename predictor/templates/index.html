@@ -1804,6 +1804,11 @@ select { -webkit-appearance: none; cursor: pointer; }
     
     document.getElementById('mapLabel').textContent = '📍 ' + location;
     
+    if (currentPolygonLayer && window.mapInstance) {
+        window.mapInstance.removeLayer(currentPolygonLayer);
+        currentPolygonLayer = null;
+    }
+    
     // Fetch boundary polygon from OSM Nominatim
     try {
         const city = citySelect ? citySelect.value.toLowerCase() : 'bangalore';
@@ -1828,34 +1833,22 @@ select { -webkit-appearance: none; cursor: pointer; }
             const lat = parseFloat(place.lat);
             const lon = parseFloat(place.lon);
             
-            // Remove old polygon if exists
-            if (currentPolygonLayer && window.mapInstance) {
-                window.mapInstance.removeLayer(currentPolygonLayer);
-            }
+            // Draw a circle to represent the true area of the locality (e.g. 2500m radius)
+            // since Nominatim often returns tiny points (like railway stations) for large neighborhoods like Gomti Nagar.
+            currentPolygonLayer = L.circle([lat, lon], {
+                radius: 2500, // 2.5km represents a large neighborhood like Gomti Nagar
+                color: '#c9a96e',
+                weight: 2,
+                opacity: 0.8,
+                fillColor: '#c9a96e',
+                fillOpacity: 0.15,
+                className: 'glowing-polygon'
+            }).addTo(window.mapInstance);
             
-            if (place.geojson && typeof dropPulseMarker === 'function') {
-                dropPulseMarker(lat, lon, location);
-                
-                // Draw new polygon outline
-                currentPolygonLayer = L.geoJSON(place.geojson, {
-                    style: function (feature) {
-                        return {
-                            color: '#c9a96e',      // Gold outline
-                            weight: 2,
-                            opacity: 0.8,
-                            fillColor: '#c9a96e',
-                            fillOpacity: 0.15,
-                            className: 'glowing-polygon'
-                        };
-                    }
-                }).addTo(window.mapInstance);
-                
-                // Zoom map to fit the area exactly!
-                window.mapInstance.fitBounds(currentPolygonLayer.getBounds(), { padding: [20, 20], maxZoom: 15 });
-            } else if (typeof dropPulseMarker === 'function') {
-                // Fallback if no polygon found, just point
+            if (typeof dropPulseMarker === 'function') {
                 dropPulseMarker(lat, lon, location);
             }
+            window.mapInstance.fitBounds(currentPolygonLayer.getBounds(), { padding: [20, 20], maxZoom: 14 });
         } else {
             // Try fetching just the city center as a fallback before Absolute Fallback
             if (isIndia && actualCitySelect && stateSelect) {
@@ -1912,6 +1905,10 @@ select { -webkit-appearance: none; cursor: pointer; }
                 mockLng = baseLng + (Math.random() - 0.5) * 0.15;
             }
             if (typeof dropPulseMarker === 'function') dropPulseMarker(mockLat, mockLng, location);
+            currentPolygonLayer = L.circle([mockLat, mockLng], {
+                radius: 2500, color: '#c9a96e', weight: 2, opacity: 0.8, fillColor: '#c9a96e', fillOpacity: 0.15, className: 'glowing-polygon'
+            }).addTo(window.mapInstance);
+            window.mapInstance.fitBounds(currentPolygonLayer.getBounds(), { padding: [20, 20], maxZoom: 14 });
         }
     } catch(e) {
         console.warn('Geocoding failed:', e);
@@ -1971,17 +1968,33 @@ select { -webkit-appearance: none; cursor: pointer; }
             mockLng = baseLng + (Math.random() - 0.5) * 0.15;
         }
         if (typeof dropPulseMarker === 'function') dropPulseMarker(mockLat, mockLng, location);
+        currentPolygonLayer = L.circle([mockLat, mockLng], {
+            radius: 2500, color: '#c9a96e', weight: 2, opacity: 0.8, fillColor: '#c9a96e', fillOpacity: 0.15, className: 'glowing-polygon'
+        }).addTo(window.mapInstance);
+        window.mapInstance.fitBounds(currentPolygonLayer.getBounds(), { padding: [20, 20], maxZoom: 14 });
     }
     
     try {
       const fd = new FormData();
       fd.append('location', location);
+      // Need to include city and other fields if required, though the backend already handles fallback.
+      const city = citySelect ? citySelect.value.toLowerCase() : 'bangalore';
+      fd.append('city', city);
+      if (actualCitySelect) fd.append('actual_city', actualCitySelect.value);
+      if (stateSelect) fd.append('state', stateSelect.value);
+      if (currentPolygonLayer && typeof currentPolygonLayer.getBounds === 'function') {
+         const center = currentPolygonLayer.getBounds().getCenter();
+         fd.append('lat', center.lat);
+         fd.append('lon', center.lng);
+      }
+      
       const r = await fetch('/get_nearby_amenities', { method: 'POST', body: fd });
       const d = await r.json();
       if (d.amenities && d.total > 0) {
         currentAmenities = d.amenities;
         sessionStorage.setItem('currentAmenities', JSON.stringify(currentAmenities));
         generateLifestyleBadges(d.amenities);
+        if(typeof window.updateHeatmapWithAmenities === 'function') window.updateHeatmapWithAmenities(d.amenities);
       }
     } catch(e) { console.warn('Map amenities fetch failed:', e); }
 
@@ -2760,25 +2773,52 @@ let heatLayer = null;
 let currentPulseMarker = null;
 let isHeatmapActive = true;
 
-// Mock data generator for Bangalore price density
-function generateMockHeatmapData() {
+// Generate heatmap data from real fetched amenities
+window.updateHeatmapWithAmenities = function(amenitiesObj) {
+    if(!mapInstance || !heatLayer) return;
+    let data = [];
+    
+    // Assign weight based on category
+    const weights = {
+        'school': 0.8,
+        'hospital': 1.0,
+        'metro': 1.0,
+        'park': 0.6,
+        'restaurant': 0.5,
+        'mall': 0.9,
+        'bus_stop': 0.4
+    };
+    
+    for (const [cat, items] of Object.entries(amenitiesObj)) {
+        if (Array.isArray(items)) {
+            items.forEach(item => {
+                let intensity = weights[cat] || 0.5;
+                // Add the exact point
+                data.push([item.lat, item.lon, intensity]);
+                // Add some subtle spread around the real location for visual heat effect
+                for(let i = 0; i < 5; i++) {
+                    let latOffset = (Math.random() - 0.5) * 0.005;
+                    let lngOffset = (Math.random() - 0.5) * 0.005;
+                    data.push([item.lat + latOffset, item.lon + lngOffset, intensity * 0.5]);
+                }
+            });
+        }
+    }
+    heatLayer.setLatLngs(data);
+};
+
+function generateInitialHeatmapData() {
     let data = [];
     const hotspots = [
-        {lat: 12.9352, lng: 77.6245, intensity: 1.0}, // Koramangala
-        {lat: 12.9784, lng: 77.6408, intensity: 0.9}, // Indiranagar
-        {lat: 12.9698, lng: 77.7500, intensity: 0.8}, // Whitefield
-        {lat: 12.8452, lng: 77.6602, intensity: 0.7}, // Electronic City
-        {lat: 13.0280, lng: 77.5891, intensity: 0.6}  // Hebbal
+        {lat: 26.8467, lng: 80.9462, intensity: 0.8}, // Lucknow Center
+        {lat: 12.9716, lng: 77.5946, intensity: 0.8}  // Bangalore Center
     ];
-    
     hotspots.forEach(spot => {
-        for(let i = 0; i < 100; i++) {
-            let latOffset = (Math.random() - 0.5) * 0.12;
-            let lngOffset = (Math.random() - 0.5) * 0.12;
-            let val = spot.intensity * (1 - (Math.abs(latOffset) + Math.abs(lngOffset)) * 6);
-            if(val > 0) {
-                data.push([spot.lat + latOffset, spot.lng + lngOffset, val]);
-            }
+        for(let i = 0; i < 30; i++) {
+            let latOffset = (Math.random() - 0.5) * 0.1;
+            let lngOffset = (Math.random() - 0.5) * 0.1;
+            let val = spot.intensity * (1 - (Math.abs(latOffset) + Math.abs(lngOffset)) * 10);
+            if(val > 0) data.push([spot.lat + latOffset, spot.lng + lngOffset, val]);
         }
     });
     return data;
@@ -2798,7 +2838,7 @@ function initLeafletMap() {
         maxZoom: 19
     }).addTo(mapInstance);
 
-    let heatData = generateMockHeatmapData();
+    let heatData = generateInitialHeatmapData();
     heatLayer = L.heatLayer(heatData, {
         radius: 12,
         blur: 15,
