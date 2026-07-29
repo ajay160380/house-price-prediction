@@ -1603,7 +1603,12 @@ select { -webkit-appearance: none; cursor: pointer; }
       target.classList.add('active');
       const info = tabTitles[tab] || ['Dashboard', ''];
       tabTitleEl.textContent = info[0];
-      tabSubEl.textContent = info[1];
+      if (tab === 'chatbot') {
+        const cName = typeof getCurrentCityName === 'function' ? getCurrentCityName() : 'Bangalore';
+        tabSubEl.textContent = `Ask anything about ${cName} real estate`;
+      } else {
+        tabSubEl.textContent = info[1];
+      }
       currentTab = tab; sessionStorage.setItem('estate_current_tab', currentTab);
       sessionStorage.setItem('activeTab', tab);
 
@@ -2453,9 +2458,11 @@ select { -webkit-appearance: none; cursor: pointer; }
     loading.classList.add('show');
     label.textContent = '📍 ' + location;
     try {
+      const currentCity = typeof getCurrentCityName === 'function' ? getCurrentCityName() : (citySelect ? citySelect.value : 'bangalore');
       const fd = new FormData();
       fd.append('location', location);
       fd.append('price', price || '');
+      fd.append('city', currentCity);
       fd.append('amenities', JSON.stringify(currentAmenities || {}));
       const res = await fetch('/get_ai_analysis', { method:'POST', body:fd });
       const data = await res.json();
@@ -2495,6 +2502,29 @@ select { -webkit-appearance: none; cursor: pointer; }
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
+  function getCurrentCityName() {
+    const cityVal = citySelect ? citySelect.value : 'bangalore';
+    if (cityVal === 'lucknow') return 'Lucknow';
+    if (cityVal === 'india' && actualCitySelect && actualCitySelect.value) return actualCitySelect.value;
+    return 'Bangalore';
+  }
+
+  function updateChatbotCityHeader() {
+    const cName = getCurrentCityName();
+    const welcomeSpan = document.getElementById('chatCityWelcome');
+    if (welcomeSpan) welcomeSpan.textContent = cName;
+    if (currentTab === 'chatbot' && tabSubEl) {
+      tabSubEl.textContent = `Ask anything about ${cName} real estate`;
+    }
+  }
+
+  if (citySelect) {
+    citySelect.addEventListener('change', updateChatbotCityHeader);
+  }
+  if (actualCitySelect) {
+    actualCitySelect.addEventListener('change', updateChatbotCityHeader);
+  }
+
   async function sendChatMessage() {
     const msg = chatInput.value.trim();
     if (!msg) return;
@@ -2503,17 +2533,18 @@ select { -webkit-appearance: none; cursor: pointer; }
     chatInput.disabled = true;
     chatSendBtn.disabled = true;
 
-    if (lastPredictionData) {
-      chatContext = {
-        location: lastPredictionData.location,
-        price: lastPredictionData.price,
-        scores: currentAmenities ? null : null,
-      };
-    }
+    const currentCity = getCurrentCityName();
+    chatContext = {
+      city: currentCity,
+      location: lastPredictionData ? lastPredictionData.location : (locationSelect ? locationSelect.value : ''),
+      price: lastPredictionData ? lastPredictionData.price : null,
+      scores: currentAmenities ? null : null,
+    };
 
     try {
       const fd = new FormData();
       fd.append('message', msg);
+      fd.append('city', currentCity);
       fd.append('context', JSON.stringify(chatContext));
       const res = await fetch('/chatbot', { method:'POST', body:fd });
       const data = await res.json();
