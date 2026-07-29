@@ -308,9 +308,10 @@ def get_location_insights(request):
             'safety_score': result.get('safety_score', 7),
         })
     except Exception:
+        city_title = request.POST.get('city', 'bangalore').title()
         return JsonResponse({
             'insight_text': (
-                f'{location} is a sought-after residential area in Bengaluru with '
+                f'{location} is a sought-after residential area in {city_title} with '
                 f'developing infrastructure and good connectivity to major business hubs.'
             ),
             'investment_score': 7,
@@ -701,7 +702,7 @@ def get_nearby_amenities(request):
                 elif city.lower() == 'india' and actual_city and state_val:
                     query_str = f"{location_name}, {actual_city}, {state_val}, India"
                 else:
-                    query_str = f"{location_name}, Bengaluru, Karnataka, India"
+                    query_str = f"{location_name}, {city.title()}, India"
                     
                 q = requests.utils.quote(query_str)
                 nom_url = f"https://nominatim.openstreetmap.org/search?format=json&q={q}&limit=1"
@@ -1042,7 +1043,7 @@ def get_ai_analysis(request):
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
 
-        prompt = f"""You are a {city} real estate expert. Analyze this locality:
+        prompt = f"""You are an expert real estate AI analyst strictly for {city}, India. Analyze this locality:
 
 Location: {location}, {city}
 {prices_note}
@@ -1062,13 +1063,15 @@ Locality Scores (0-10):
 - Lifestyle: {scores['lifestyle']}
 - Overall: {scores['overall']}
 
+CRITICAL INSTRUCTION: All pros, cons, growth prospects, and recommendations MUST be strictly tailored to living and investing in {city}, India. Do NOT mention or compare with Bangalore, Bengaluru, or any other city unless {city} is Bangalore.
+
 Return a JSON object with these exact keys:
-- "pros": array of 3-4 bullet-point pros about this locality for investment/living
-- "cons": array of 2-3 bullet-point cons or considerations
+- "pros": array of 3-4 bullet-point pros about this locality for investment/living in {city}
+- "cons": array of 2-3 bullet-point cons or considerations in {city}
 - "investment_potential": one word - "Excellent", "Good", "Moderate", or "Low"
 - "rental_demand": one word - "Very High", "High", "Moderate", or "Low"
-- "future_growth": 2-sentence paragraph about future growth prospects
-- "recommendation": 2-sentence final verdict for a potential buyer/investor
+- "future_growth": 2-sentence paragraph about future growth prospects in {city}
+- "recommendation": 2-sentence final verdict for a potential buyer/investor in {city}
 
 Only valid JSON, no other text."""
 
@@ -1097,7 +1100,7 @@ Only valid JSON, no other text."""
             ],
             'investment_potential': "Good",
             'rental_demand': "High" if metro_count > 0 else "Moderate",
-            'future_growth': f"{location} is poised for steady growth with ongoing urban development in Bengaluru. Infrastructure improvements and new commercial projects are expected to boost property values.",
+            'future_growth': f"{location} is poised for steady growth with ongoing urban development in {city}. Infrastructure improvements and new commercial projects are expected to boost property values.",
             'recommendation': f"{location} presents a solid opportunity for both end-users and investors. With its current infrastructure and growth trajectory, it offers good long-term value.",
             'locality_score': scores['overall'],
             'breakdown_scores': scores,
@@ -1120,16 +1123,19 @@ def chatbot(request):
     except json.JSONDecodeError:
         ctx = {}
 
+    city_param = request.POST.get('city') or ctx.get('city') or 'Bangalore'
+    city_name = city_param.title()
+
     if not GROQ_API_KEY:
         return JsonResponse({
-            'reply': f"I'm EstateAI's property assistant. Based on current data: {message} For Bengaluru real estate, consider factors like location, connectivity, nearby amenities, and price trends. Would you like specific advice about a locality?",
+            'reply': f"I'm EstateAI's property assistant. Based on current data: {message} For {city_name} real estate, consider factors like location, connectivity, nearby amenities, and price trends. Would you like specific advice about a locality in {city_name}?",
         })
 
     try:
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
 
-        context_info = ""
+        context_info = f"\nCurrent selected city: {city_name}"
         if ctx.get('location'):
             context_info += f"\nCurrent context - Location: {ctx['location']}"
         if ctx.get('price'):
@@ -1137,7 +1143,7 @@ def chatbot(request):
         if ctx.get('scores'):
             context_info += f", Locality Score: {ctx['scores']}/10"
 
-        system_prompt = f"""You are EstateAI, a professional Bengaluru real estate assistant. You help users with property-related questions about Bangalore's real estate market. Be concise, factual, and helpful. Focus on Bangalore areas, prices, trends, and investment advice. Keep responses under 3-4 sentences unless asked for details.{context_info}"""
+        system_prompt = f"""You are EstateAI, an expert real estate AI assistant specifically for {city_name}, India. Your knowledge and responses MUST be strictly focused on {city_name}'s real estate market, localities, infrastructure, price trends, and area information. IMPORTANT: If the user mentions a location (e.g., Uattardhona, Gomti Nagar, Indira Nagar, Koramangala, etc.), answer ONLY in the context of {city_name}. Do NOT confuse or replace {city_name} locations with other cities (such as Bangalore). If a location is in {city_name}, provide accurate details about it in {city_name}. Keep responses concise, factual, helpful, and under 3-4 sentences unless asked for details.{context_info}"""
 
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -1153,7 +1159,7 @@ def chatbot(request):
 
     except Exception:
         return JsonResponse({
-            'reply': "I'm having trouble connecting to my AI engine right now. For Bengaluru real estate queries, consider checking property values, nearby amenities, connectivity options, and recent price trends in the area. Try again shortly.",
+            'reply': f"I'm having trouble connecting to my AI engine right now. For {city_name} real estate queries, consider checking property values, nearby amenities, connectivity options, and recent price trends in {city_name}. Try again shortly.",
         })
 
 @csrf_exempt
@@ -1163,6 +1169,7 @@ def calculate_commute(request):
     
     origin = request.POST.get('origin')
     workplace = request.POST.get('workplace')
+    city = request.POST.get('city', 'bangalore').title()
     
     if not origin or not workplace:
         return JsonResponse({'error': 'origin and workplace are required'}, status=400)
@@ -1171,14 +1178,14 @@ def calculate_commute(request):
     
     try:
         # Geocode origin
-        o_url = f"https://api.geoapify.com/v1/geocode/search?text={requests.utils.quote(origin + ', Bangalore')}&limit=1&apiKey={api_key}"
+        o_url = f"https://api.geoapify.com/v1/geocode/search?text={requests.utils.quote(origin + ', ' + city)}&limit=1&apiKey={api_key}"
         o_resp = requests.get(o_url, timeout=5).json()
         if not o_resp.get("features"):
             return JsonResponse({'error': 'Could not find origin.'}, status=404)
         lat, lon = o_resp["features"][0]["geometry"]["coordinates"][1], o_resp["features"][0]["geometry"]["coordinates"][0]
         
         # Geocode destination
-        geo_url = f"https://api.geoapify.com/v1/geocode/search?text={requests.utils.quote(workplace + ', Bangalore')}&limit=1&apiKey={api_key}"
+        geo_url = f"https://api.geoapify.com/v1/geocode/search?text={requests.utils.quote(workplace + ', ' + city)}&limit=1&apiKey={api_key}"
         geo_resp = requests.get(geo_url, timeout=5).json()
         
         if not geo_resp.get("features"):
