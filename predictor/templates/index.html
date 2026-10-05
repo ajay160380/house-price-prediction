@@ -529,7 +529,7 @@ select { -webkit-appearance: none; cursor: pointer; }
   overflow: hidden;
 }
 .map-panel #leafletMap .leaflet-tile-pane {
-  filter: brightness(2.0) contrast(0.85) grayscale(0.2);
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
 .map-corner {
   position: absolute;
@@ -2865,7 +2865,7 @@ function initLeafletMap() {
     });
     window.mapInstance = mapInstance;
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
     }).addTo(mapInstance);
 
