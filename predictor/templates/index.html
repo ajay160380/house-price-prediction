@@ -1540,34 +1540,81 @@ select { -webkit-appearance: none; cursor: pointer; }
   </div>
 </div>
 
-<!-- Hidden PDF Template -->
-<div id="pdfTemplate" style="display:none">
-  <div style="font-family:'Segoe UI',Arial,sans-serif;padding:28px;color:#1a1a2e;background:#fff">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <div style="width:36px;height:36px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px">🏡</div>
-      <div><h1 style="font-size:20px;margin:0;color:#1a1a2e">EstateAI Property Report</h1><div style="font-size:12px;color:#666">Bengaluru Real Estate Intelligence</div></div>
+<!-- Hidden PDF Template Container -->
+<div style="position: absolute; left: -9999px; top: -9999px;">
+  <div id="pdfTemplate" style="width: 800px; background: #ffffff;">
+    <div style="font-family: 'Inter', 'Segoe UI', Arial, sans-serif; padding: 50px; color: #1e293b; background: #ffffff;">
+      
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #c9a96e; padding-bottom: 24px; margin-bottom: 36px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 54px; height: 54px; background: #131318; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #c9a96e;">🏢</div>
+            <div>
+              <h1 style="font-family: 'Playfair Display', serif; font-size: 34px; margin: 0; color: #131318; font-weight: 600;">EstateAI <span style="color: #c9a96e; font-style: italic;">Intelligence</span></h1>
+              <div style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; font-weight: 500;">Comprehensive Property Valuation Report</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align: right; color: #64748b; font-size: 13px; line-height: 1.6;">
+          <div>Date: <span style="color: #0f172a; font-weight: 600;" id="pdfDate"></span></div>
+          <div>City: <span style="color: #0f172a; font-weight: 600;" id="pdfCity"></span></div>
+        </div>
+      </div>
+
+      <!-- Main Valuation Box -->
+      <div style="background: linear-gradient(135deg, #131318 0%, #1e293b 100%); border-radius: 14px; padding: 36px; color: white; display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; box-shadow: 0 12px 30px rgba(0,0,0,0.15);">
+        <div>
+          <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #c9a96e; margin-bottom: 10px; font-weight: 600;">Estimated Market Value</div>
+          <div style="font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 600; color: #ffffff; letter-spacing: -0.5px;" id="pdfPrice">₹0</div>
+          <div style="font-size: 15px; color: #94a3b8; margin-top: 8px;">Price Range: <span id="pdfRange" style="color: white; font-weight: 500;">-</span></div>
+        </div>
+        <div style="text-align: right; max-width: 300px;">
+          <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #c9a96e; margin-bottom: 10px; font-weight: 600;">Target Location</div>
+          <div style="font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;" id="pdfLocation">Location</div>
+        </div>
+      </div>
+
+      <!-- Details Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+        
+        <!-- Property Specs -->
+        <div>
+          <h2 style="font-family: 'Playfair Display', serif; font-size: 22px; color: #131318; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px; font-weight: 600;">Property Specifications</h2>
+          <table style="width: 100%; font-size: 15px; border-collapse: collapse;">
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">Total Area</td><td style="padding: 12px 0; text-align: right; font-weight: 600; color: #0f172a; border-bottom: 1px dashed #e2e8f0;" id="pdfSqft"></td></tr>
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">Configuration</td><td style="padding: 12px 0; text-align: right; font-weight: 600; color: #0f172a; border-bottom: 1px dashed #e2e8f0;" id="pdfConfig"></td></tr>
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">Investment Score</td><td style="padding: 12px 0; text-align: right; font-weight: 700; color: #10b981; border-bottom: 1px dashed #e2e8f0;" id="pdfInvest"></td></tr>
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">Safety Score</td><td style="padding: 12px 0; text-align: right; font-weight: 700; color: #3b82f6; border-bottom: 1px dashed #e2e8f0;" id="pdfSafety"></td></tr>
+          </table>
+        </div>
+
+        <!-- Financial Projections -->
+        <div>
+          <h2 style="font-family: 'Playfair Display', serif; font-size: 22px; color: #131318; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px; font-weight: 600;">Financial Projections</h2>
+          <table style="width: 100%; font-size: 15px; border-collapse: collapse;">
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">5-Year Future Value</td><td style="padding: 12px 0; text-align: right; font-weight: 600; color: #0f172a; border-bottom: 1px dashed #e2e8f0;" id="pdfFuture"></td></tr>
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">Est. Monthly EMI (20y)</td><td style="padding: 12px 0; text-align: right; font-weight: 600; color: #0f172a; border-bottom: 1px dashed #e2e8f0;" id="pdfEMI"></td></tr>
+            <tr><td style="padding: 12px 0; color: #64748b; border-bottom: 1px dashed #e2e8f0;">Total Loan Payment</td><td style="padding: 12px 0; text-align: right; font-weight: 600; color: #0f172a; border-bottom: 1px dashed #e2e8f0;" id="pdfTotalPay"></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- AI Insights -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin-bottom: 40px; border-left: 4px solid #c9a96e;">
+        <h2 style="font-family: 'Playfair Display', serif; font-size: 22px; color: #131318; margin-top: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-weight: 600;">
+          <span style="font-size: 24px;">✨</span> AI Market Insights
+        </h2>
+        <p style="font-size: 15px; line-height: 1.8; color: #334155; margin: 0; text-align: justify;" id="pdfInsight"></p>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 24px; line-height: 1.6;">
+        Generated by <strong>EstateAI</strong> — Powered by Advanced Machine Learning &amp; AI Intelligence<br>
+        <span style="font-style: italic;">This report is AI-generated and should be used for informational purposes only.</span>
+      </div>
+
     </div>
-    <div style="font-size:15px;font-weight:700;color:#667eea;margin:18px 0 8px;padding-bottom:3px;border-bottom:2px solid #667eea">Property Overview</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px">
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333;width:40%">Area</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0" id="pdfSqft"></td></tr>
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333">Configuration</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0" id="pdfConfig"></td></tr>
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333">Location</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0" id="pdfLocation"></td></tr>
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333">Estimated Value</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-size:18px;font-weight:800;color:#667eea" id="pdfPrice"></td></tr>
-      <tr><td style="padding:6px 10px;font-weight:600;color:#333">Price Range</td><td style="padding:6px 10px" id="pdfRange"></td></tr>
-    </table>
-    <div style="font-size:15px;font-weight:700;color:#667eea;margin:18px 0 8px;padding-bottom:3px;border-bottom:2px solid #667eea">AI Market Intelligence</div>
-    <p style="font-size:13px;line-height:1.6;color:#333;margin-bottom:8px" id="pdfInsight"></p>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px">
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333">Investment Score</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0" id="pdfInvest"></td></tr>
-      <tr><td style="padding:6px 10px;font-weight:600;color:#333">Safety Score</td><td style="padding:6px 10px" id="pdfSafety"></td></tr>
-    </table>
-    <div style="font-size:15px;font-weight:700;color:#667eea;margin:18px 0 8px;padding-bottom:3px;border-bottom:2px solid #667eea">5-Year Forecast &amp; EMI</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px">
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333">Projected Value (Year 5)</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-size:18px;font-weight:800;color:#667eea" id="pdfFuture"></td></tr>
-      <tr><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:600;color:#333">Monthly EMI</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0" id="pdfEMI"></td></tr>
-      <tr><td style="padding:6px 10px;font-weight:600;color:#333">Total Payment</td><td style="padding:6px 10px" id="pdfTotalPay"></td></tr>
-    </table>
-    <div style="font-size:10px;color:#999;text-align:center;margin-top:16px;padding-top:10px;border-top:1px solid #e0e0e0">Generated by EstateAI — Powered by Groq AI + Scikit-Learn | Bengaluru, India</div>
   </div>
 </div>
 
@@ -2300,6 +2347,11 @@ select { -webkit-appearance: none; cursor: pointer; }
     document.getElementById('pdfFuture').textContent = formatIndianCurrency(fv);
     document.getElementById('pdfEMI').textContent = '₹ ' + emi.toLocaleString('en-IN') + '/mo';
     document.getElementById('pdfTotalPay').textContent = '₹ ' + (emi * 12 * 20).toLocaleString('en-IN');
+    
+    // Fill dynamic headers
+    document.getElementById('pdfDate').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+    const cName = (typeof getCurrentCityName === 'function') ? getCurrentCityName() : 'Bengaluru';
+    document.getElementById('pdfCity').textContent = cName;
 
     this.disabled = true;
     this.textContent = '⏳ Generating...';
